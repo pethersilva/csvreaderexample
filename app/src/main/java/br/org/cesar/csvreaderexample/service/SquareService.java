@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 
+import br.org.cesar.csvreaderexample.database.AppDatabase;
+import br.org.cesar.csvreaderexample.database.entity.Logradouro;
 import br.org.cesar.csvreaderexample.model.Square;
 import de.siegmar.fastcsv.reader.CsvParser;
 import de.siegmar.fastcsv.reader.CsvReader;
@@ -37,7 +39,13 @@ public class SquareService {
 		mContext = context;
 	}
 
-	public ArrayList<Square> getSquare() {
+	public void createDatabaseTable() {
+
+		AppDatabase.getAppDatabase(mContext);
+		ArrayList<Square> squareList = readCSVFile();
+	}
+
+	private ArrayList<Square> readCSVFile() {
 		ArrayList<Square> squareList = null;
 
 		if (mContext != null) {
@@ -47,8 +55,6 @@ public class SquareService {
 						"raw", mContext.getPackageName()));
 				BufferedReader readerInput = new BufferedReader(new InputStreamReader(ins));
 				CsvReader csvReader = new CsvReader();
-
-				//csvReader.setTextDelimiter(';');
 				csvReader.setFieldSeparator(';');
 				try (CsvParser csvParser = csvReader.parse(readerInput)) {
 					CsvRow row;
@@ -64,9 +70,13 @@ public class SquareService {
 						square.setmCodigo_logradouro(parseStringToDouble(
 							row.getField(CODIGO_LOGRADOURO_INDEX), 0));
 						square.setmLei_equip_urbano(row.getField(LEI_EQUIP_URBANO_INDEX));
-						square.setmNome_bairro(row.getField(NOME_BAIRRO_INDEX));
-						square.setmCcodigo_bairro(parseStringToDouble(
-							row.getField(CODIGO_BAIRRO_INDEX), 0));
+
+						double id_bairro = parseStringToDouble(row.getField(CODIGO_BAIRRO_INDEX),0);
+						String desc_bairro = row.getField(NOME_BAIRRO_INDEX);
+
+						square.setmNome_bairro(desc_bairro);
+						square.setmCcodigo_bairro(id_bairro);
+
 						square.setmNome_oficial_equip_urbano(
 							row.getField(NOME_OFICIAL_EQUIP_URBANO_INDEX));
 						square.setmArea(parseStringToDouble(
@@ -77,6 +87,19 @@ public class SquareService {
 							row.getField(LATITUDE_INDEX), 0));
 						square.setmLongitude(parseStringToDouble(
 							row.getField(LONGITUDE_INDEX), 0));
+
+						//verificar se já existe um bairro com o id cadastrado
+						if (id_bairro > 0) {
+							AppDatabase appDatabase = AppDatabase.getAppDatabase(mContext);
+							Logradouro logradouro = appDatabase.logradouroDao().findById(id_bairro);
+
+							if (logradouro == null) { //então esse logradouro nunca foi inserido no banco
+								logradouro = new Logradouro();
+								logradouro.setDescricao(desc_bairro);
+								logradouro.setId(id_bairro);
+								appDatabase.logradouroDao().insertAll(logradouro);
+							}
+						}
 						squareList.add(square);
 					}
 				}
