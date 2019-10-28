@@ -8,12 +8,15 @@ import androidx.room.RoomDatabase;
 
 import br.org.cesar.csvreaderexample.database.entity.Logradouro;
 import br.org.cesar.csvreaderexample.database.entity.LogradouroDao;
+import br.org.cesar.csvreaderexample.database.entity.Square;
+import br.org.cesar.csvreaderexample.database.entity.SquareDao;
 
-@Database(entities = {Logradouro.class}, version = 1)
+@Database(entities = {Logradouro.class, Square.class}, version = 1)
 public abstract class AppDatabase extends RoomDatabase {
 
 	private static AppDatabase INSTANCE;
 	public abstract LogradouroDao logradouroDao();
+	public abstract SquareDao squareDao();
 
 	public static AppDatabase getAppDatabase(Context context) {
 		if (INSTANCE == null) {

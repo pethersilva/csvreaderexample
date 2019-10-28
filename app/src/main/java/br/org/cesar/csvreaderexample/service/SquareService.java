@@ -1,20 +1,22 @@
 package br.org.cesar.csvreaderexample.service;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
 
 import br.org.cesar.csvreaderexample.database.AppDatabase;
 import br.org.cesar.csvreaderexample.database.entity.Logradouro;
-import br.org.cesar.csvreaderexample.model.Square;
+import br.org.cesar.csvreaderexample.database.entity.Square;
 import de.siegmar.fastcsv.reader.CsvParser;
 import de.siegmar.fastcsv.reader.CsvReader;
 import de.siegmar.fastcsv.reader.CsvRow;
+
+import static br.org.cesar.csvreaderexample.ui.MainActivity.IS_DATABASE_CREATED_CORRECTLY;
 
 public class SquareService {
 
@@ -35,19 +37,19 @@ public class SquareService {
 	private final int LONGITUDE_INDEX = 11;
 	private final static String TAG = "SquareService";
 
-	public SquareService(Context context) {
+	private SharedPreferences mSharedPreference;
+
+	public SquareService(Context context, SharedPreferences sharedPreferences) {
 		mContext = context;
+		mSharedPreference = sharedPreferences;
 	}
 
 	public void createDatabaseTable() {
-
 		AppDatabase.getAppDatabase(mContext);
-		ArrayList<Square> squareList = readCSVFile();
+		readCSVFile();
 	}
 
-	private ArrayList<Square> readCSVFile() {
-		ArrayList<Square> squareList = null;
-
+	private void readCSVFile() {
 		if (mContext != null) {
 			try {
 				InputStream ins = mContext.getResources().openRawResource(
@@ -60,37 +62,36 @@ public class SquareService {
 					CsvRow row;
 					csvParser.nextRow(); //ignoring the first line
 					Square square;
-					squareList = new ArrayList<>();
 					while ((row = csvParser.nextRow()) != null) {
 						square = new Square();
 
-						square.setmNome_equip_urbano(row.getField(NOME_EQUIP_URBANO_INDEX));
-						square.setmTipo_equip_urbano(row.getField(TIPO_EQUIP_URBANO_INDEX));
-						square.setmEndereco_equip_urbano(row.getField(ENDERECO_EQUIP_URBANO_INDEX));
-						square.setmCodigo_logradouro(parseStringToDouble(
-							row.getField(CODIGO_LOGRADOURO_INDEX), 0));
-						square.setmLei_equip_urbano(row.getField(LEI_EQUIP_URBANO_INDEX));
+						square.setNome_equip_urbano((row.getField(NOME_EQUIP_URBANO_INDEX)));
+						square.setTipo_equip_urbano((row.getField(TIPO_EQUIP_URBANO_INDEX)));
+						square.setEndereco_equip_urbano((row.getField(ENDERECO_EQUIP_URBANO_INDEX)));
+						square.setCodigo_logradouro((parseStringToDouble(
+							row.getField(CODIGO_LOGRADOURO_INDEX), 0)));
+						square.setLei_equip_urbano(row.getField(LEI_EQUIP_URBANO_INDEX));
 
 						double id_bairro = parseStringToDouble(row.getField(CODIGO_BAIRRO_INDEX),0);
 						String desc_bairro = row.getField(NOME_BAIRRO_INDEX);
 
-						square.setmNome_bairro(desc_bairro);
-						square.setmCcodigo_bairro(id_bairro);
+						square.setNome_bairro(desc_bairro);
+						square.setCodigo_bairro(id_bairro);
 
-						square.setmNome_oficial_equip_urbano(
+						square.setNome_oficial_equip_urbano(
 							row.getField(NOME_OFICIAL_EQUIP_URBANO_INDEX));
-						square.setmArea(parseStringToDouble(
+						square.setArea(parseStringToDouble(
 							row.getField(AREA_INDEX), 0));
-						square.setmPerimetro(parseStringToDouble(
+						square.setPerimetro(parseStringToDouble(
 							row.getField(PERIMETRO_INDEX), 0));
-						square.setmLatitude(parseStringToDouble(
+						square.setLatitude(parseStringToDouble(
 							row.getField(LATITUDE_INDEX), 0));
-						square.setmLongitude(parseStringToDouble(
+						square.setLongitude(parseStringToDouble(
 							row.getField(LONGITUDE_INDEX), 0));
 
 						//verificar se já existe um bairro com o id cadastrado
+						AppDatabase appDatabase = AppDatabase.getAppDatabase(mContext);
 						if (id_bairro > 0) {
-							AppDatabase appDatabase = AppDatabase.getAppDatabase(mContext);
 							Logradouro logradouro = appDatabase.logradouroDao().findById(id_bairro);
 
 							if (logradouro == null) { //então esse logradouro nunca foi inserido no banco
@@ -100,14 +101,15 @@ public class SquareService {
 								appDatabase.logradouroDao().insertAll(logradouro);
 							}
 						}
-						squareList.add(square);
+						//salvando todos os squares
+						appDatabase.squareDao().insertAll(square);
 					}
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
-		return squareList;
+		mSharedPreference.edit().putBoolean(IS_DATABASE_CREATED_CORRECTLY, true).apply();
 	}
 
 	private double parseStringToDouble(String value, double defaultValue) {
